@@ -2,10 +2,6 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import {
-  FormControl,
-  InputLabel,
-  Select,
-  MenuItem,
   Card,
   CardContent,
   TextField,
@@ -14,7 +10,6 @@ import {
   Box,
   CircularProgress,
   Paper,
-  Container,
   Fade,
   Grow,
   IconButton,
@@ -157,89 +152,67 @@ const CustomToast = ({ open, message, type, onClose }) => {
   );
 };
 
-const RegistrationForm = () => {
+const LoginForm = () => {
   const navigate = useNavigate();
-  const [errors, setErrors] = useState({ email: '', password: '' });
   const [formData, setFormData] = useState({
-    username: '',
     email: '',
     password: '',
-    role: '',
   });
   const [loading, setLoading] = useState(false);
   const [toast, setToast] = useState({ open: false, message: '', type: 'info' });
 
   const handleChange = (e) => {
-    const { name, value } = e.target;
-    setFormData((prev) => ({
-      ...prev,
-      [name]: value,
-    }));
-
-    if (name === 'email' && errors.email) {
-      setErrors((prev) => ({ ...prev, email: '' }));
-    }
-    if (name === 'password' && errors.password) {
-      setErrors((prev) => ({ ...prev, password: '' }));
-    }
+    setFormData({
+      ...formData,
+      [e.target.name]: e.target.value,
+    });
   };
-
-  const validateEmail = (email) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
-  const validatePassword = (password) => password.length >= 6;
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-
-    let hasError = false;
-    if (!validateEmail(formData.email)) {
-      setToast({
-        open: true,
-        message: 'Please enter a valid email address',
-        type: 'error'
-      });
-      hasError = true;
-    }
-    if (!validatePassword(formData.password)) {
-      setToast({
-        open: true,
-        message: 'Password must be at least 6 characters',
-        type: 'warning'
-      });
-      hasError = true;
-    }
-    if (hasError) return;
-
     setLoading(true);
-    setErrors({ email: '', password: '' });
 
     try {
-      const response = await axios.post('http://localhost:8000/api/auth/register', formData);
-      console.log('Registration Successful:', response);
+      const response = await axios.post('http://localhost:8000/api/auth/login', formData);
+      console.log('Login Successful:', response.data);
 
-      const userRole = response.data.role.toLowerCase();
-      localStorage.setItem('user', JSON.stringify({ role: userRole }));
-      localStorage.setItem('name', JSON.stringify(response.data.Username));
+      // Store user data in localStorage
+      const userData = {
+        role: response.data.role,
+        token: response.data.token,
+        id: response.data._id
+      };
+      
+      localStorage.setItem('user', JSON.stringify(userData));
+      localStorage.setItem('name', JSON.stringify(response.data.username));
 
       setToast({
         open: true,
-        message: `Welcome ${response.data.Username}! Registration successful. Redirecting...`,
+        message: `Welcome back ${response.data.username}! Redirecting...`,
         type: 'success'
       });
 
+      // Redirect based on role after a short delay
       setTimeout(() => {
+        const userRole = response.data.role.toLowerCase();
         if (userRole === 'passenger') {
           navigate('/passenger');
         } else if (userRole === 'rider') {
           navigate('/rider');
+        } else {
+          setToast({
+            open: true,
+            message: 'Invalid user role. Please contact support.',
+            type: 'error'
+          });
         }
       }, 2000);
 
-      setFormData({ username: '', email: '', password: '', role: '' });
     } catch (error) {
-      console.log('Registration Failed:', error.response?.data?.message || error.message);
+      console.error('Login Failed:', error.response?.data?.message || error.message);
       setToast({
         open: true,
-        message: error.response?.data?.message || 'Registration failed. Please try again.',
+        message: error.response?.data?.message || 'Login failed. Please check your credentials.',
         type: 'error'
       });
     } finally {
@@ -249,10 +222,6 @@ const RegistrationForm = () => {
 
   const handleCloseToast = () => {
     setToast({ ...toast, open: false });
-  };
-
-  const handleLoginClick = () => {
-    navigate('/login');
   };
 
   return (
@@ -287,39 +256,19 @@ const RegistrationForm = () => {
           gutterBottom
           sx={{ fontWeight: '700', letterSpacing: 1, color: '#4a148c' }}
         >
-          Create an Account
+          Welcome Back
         </Typography>
 
         <form onSubmit={handleSubmit} noValidate>
           <TextField
-            name="username"
-            label="Your Name"
-            variant="filled"
-            fullWidth
-            margin="normal"
-            value={formData.username}
-            onChange={handleChange}
-            InputLabelProps={{ shrink: true }}
-            sx={{
-              borderRadius: 2,
-              '& .MuiFilledInput-root': {
-                borderRadius: 2,
-                backgroundColor: '#f3e5f5',
-                '&:hover': { backgroundColor: '#e1bee7' },
-              },
-            }}
-          />
-          <TextField
             name="email"
-            label="Your Email"
+            label="Email Address"
             variant="filled"
             fullWidth
             margin="normal"
             type="email"
             value={formData.email}
             onChange={handleChange}
-            error={!!errors.email}
-            helperText={errors.email}
             InputLabelProps={{ shrink: true }}
             sx={{
               borderRadius: 2,
@@ -339,8 +288,6 @@ const RegistrationForm = () => {
             type="password"
             value={formData.password}
             onChange={handleChange}
-            error={!!errors.password}
-            helperText={errors.password}
             InputLabelProps={{ shrink: true }}
             sx={{
               borderRadius: 2,
@@ -351,31 +298,6 @@ const RegistrationForm = () => {
               },
             }}
           />
-          <FormControl
-            fullWidth
-            margin="normal"
-            variant="filled"
-            sx={{
-              borderRadius: 2,
-              backgroundColor: '#f3e5f5',
-              '&:hover': { backgroundColor: '#e1bee7' },
-            }}
-          >
-            <InputLabel id="role-label" sx={{ color: '#4a148c' }}>
-              Role
-            </InputLabel>
-            <Select
-              name="role"
-              labelId="role-label"
-              value={formData.role}
-              onChange={handleChange}
-              label="Role"
-              sx={{ borderRadius: 2 }}
-            >
-              <MenuItem value="Rider">Rider</MenuItem>
-              <MenuItem value="Passenger">Passenger</MenuItem>
-            </Select>
-          </FormControl>
 
           <Button
             type="submit"
@@ -397,13 +319,13 @@ const RegistrationForm = () => {
               borderRadius: 3,
             }}
           >
-            {loading ? <CircularProgress size={24} sx={{ color: '#fff' }} /> : 'Register'}
+            {loading ? <CircularProgress size={24} sx={{ color: '#fff' }} /> : 'Login'}
           </Button>
 
           <Button
             fullWidth
             variant="text"
-            onClick={handleLoginClick}
+            onClick={() => navigate('/register')}
             sx={{
               mt: 2,
               color: '#aa00ff',
@@ -413,7 +335,7 @@ const RegistrationForm = () => {
               textTransform: 'none',
             }}
           >
-            Already have an account? Login
+            Don't have an account? Register
           </Button>
         </form>
       </Card>
@@ -429,4 +351,4 @@ const RegistrationForm = () => {
   );
 };
 
-export default RegistrationForm;
+export default LoginForm;

@@ -4,6 +4,7 @@ import { useState } from 'react';
 import './App.css';
 
 import RegistrationForm from './UI/Componnents/RegistrationForm';
+import LoginForm from './UI/Componnents/LoginForm';
 import PassengerScreen from './UI/Screens/PassengerScreen';
 import RiderScreen from './UI/Screens/RiderScreen';
 import ProtectedRoutes from './UI/Componnents/ProtectedRoutes';
@@ -12,6 +13,8 @@ function App() {
   return (
     <Routes>
       <Route path="/" element={<RegistrationForm />} />
+      <Route path="/login" element={<LoginForm />} />
+      <Route path="/register" element={<RegistrationForm />} />
 
       <Route
         path="/passenger"
