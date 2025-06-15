@@ -216,8 +216,11 @@ const RegistrationForm = () => {
       const response = await axios.post('http://localhost:8000/api/auth/register', formData);
       console.log('Registration Successful:', response);
 
-      const userRole = response.data.role.toLowerCase();
-      localStorage.setItem('user', JSON.stringify({ role: userRole }));
+      localStorage.setItem('user', JSON.stringify({ 
+        role: response.data.role,
+        token: response.data.token,
+        id: response.data._id 
+      }));
       localStorage.setItem('name', JSON.stringify(response.data.Username));
 
       setToast({
@@ -227,9 +230,9 @@ const RegistrationForm = () => {
       });
 
       setTimeout(() => {
-        if (userRole === 'passenger') {
+        if (response.data.role === 'Passenger') {
           navigate('/passenger');
-        } else if (userRole === 'rider') {
+        } else if (response.data.role === 'Rider') {
           navigate('/rider');
         }
       }, 2000);
@@ -237,9 +240,18 @@ const RegistrationForm = () => {
       setFormData({ username: '', email: '', password: '', role: '' });
     } catch (error) {
       console.log('Registration Failed:', error.response?.data?.message || error.message);
+      const errorMessage = error.response?.data?.message || 'Registration failed. Please try again.';
+      
+      // Clear the specific field that caused the error
+      if (errorMessage.includes('Email already registered')) {
+        setFormData(prev => ({ ...prev, email: '' }));
+      } else if (errorMessage.includes('Username already taken')) {
+        setFormData(prev => ({ ...prev, username: '' }));
+      }
+
       setToast({
         open: true,
-        message: error.response?.data?.message || 'Registration failed. Please try again.',
+        message: errorMessage,
         type: 'error'
       });
     } finally {
