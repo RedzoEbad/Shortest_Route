@@ -15,7 +15,14 @@ import {
   Divider,
   useTheme,
   useMediaQuery,
+  Fade,
+  Grow,
 } from '@mui/material';
+import { useNavigate } from 'react-router-dom';
+import CheckCircleIcon from '@mui/icons-material/CheckCircle';
+import ErrorIcon from '@mui/icons-material/Error';
+import WarningIcon from '@mui/icons-material/Warning';
+import InfoIcon from '@mui/icons-material/Info';
 
 import DirectionsCarIcon from '@mui/icons-material/DirectionsCar';
 import AltRouteIcon from '@mui/icons-material/AltRoute';
@@ -31,10 +38,98 @@ const drawerWidth = 260;
 const menuItems = [
   { text: 'Book Rides', icon: <DirectionsCarIcon sx={{ color: '#d81b60' }} /> },
   { text: 'Find Routes', icon: <AltRouteIcon sx={{ color: '#7e57c2' , cursor : 'pointer' }} /> },
-  { text: 'Measure Distance', icon: <MapIcon sx={{ color: '#66bb6a' }} /> },
-  { text: 'Find Lat/Lon', icon: <MapIcon sx={{ color: '#ffa726' }} /> },
+  // { text: 'Measure Distance', icon: <MapIcon sx={{ color: '#66bb6a' }} /> },
+  // { text: 'Find Lat/Lon', icon: <MapIcon sx={{ color: '#ffa726' }} /> },
   { text: 'Log Out', icon: <LogoutIcon sx={{ color: '#ef5350' }} /> },
 ];
+
+const CustomToast = ({ open, message, type, onClose }) => {
+  const getIcon = () => {
+    switch (type) {
+      case 'success':
+        return <CheckCircleIcon sx={{ fontSize: 28, color: '#fff' }} />;
+      case 'error':
+        return <ErrorIcon sx={{ fontSize: 28, color: '#fff' }} />;
+      case 'warning':
+        return <WarningIcon sx={{ fontSize: 28, color: '#fff' }} />;
+      case 'info':
+        return <InfoIcon sx={{ fontSize: 28, color: '#fff' }} />;
+      default:
+        return <InfoIcon sx={{ fontSize: 28, color: '#fff' }} />;
+    }
+  };
+
+  const getBackground = () => {
+    switch (type) {
+      case 'success':
+        return 'linear-gradient(135deg, #00c853, #69f0ae)';
+      case 'error':
+        return 'linear-gradient(135deg, #ff1744, #ff616f)';
+      case 'warning':
+        return 'linear-gradient(135deg, #ffd600, #ffecb3)';
+      case 'info':
+        return 'linear-gradient(135deg, #2196f3, #90caf9)';
+      default:
+        return 'linear-gradient(135deg, #2196f3, #90caf9)';
+    }
+  };
+
+  return (
+    <Fade in={open}>
+      <Box
+        sx={{
+          position: 'fixed',
+          top: 20,
+          left: '50%',
+          transform: 'translateX(-50%)',
+          zIndex: 9999,
+          minWidth: 300,
+          maxWidth: 400,
+        }}
+      >
+        <Grow in={open}>
+          <Paper
+            elevation={6}
+            sx={{
+              p: 2,
+              display: 'flex',
+              alignItems: 'center',
+              gap: 2,
+              background: getBackground(),
+              borderRadius: '12px',
+              boxShadow: '0 4px 20px rgba(0,0,0,0.15)',
+              backdropFilter: 'blur(10px)',
+              border: '1px solid rgba(255,255,255,0.2)',
+            }}
+          >
+            {getIcon()}
+            <Typography
+              sx={{
+                color: '#fff',
+                fontWeight: 500,
+                fontSize: '1rem',
+                flex: 1,
+              }}
+            >
+              {message}
+            </Typography>
+            <IconButton
+              onClick={onClose}
+              sx={{
+                color: '#fff',
+                '&:hover': {
+                  backgroundColor: 'rgba(255,255,255,0.1)',
+                },
+              }}
+            >
+              <Typography sx={{ fontSize: '1.2rem' }}>×</Typography>
+            </IconButton>
+          </Paper>
+        </Grow>
+      </Box>
+    </Fade>
+  );
+};
 
 const PassengerScreen = () => {
   const theme = useTheme();
@@ -42,9 +137,30 @@ const PassengerScreen = () => {
   const [mobileOpen, setMobileOpen] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [routes, setRoutes] = useState([]);
+  const [toast, setToast] = useState({ open: false, message: '', type: 'info' });
+  const navigate = useNavigate();
 
   const handleDrawerToggle = () => {
     setMobileOpen(!mobileOpen);
+  };
+
+  const handleLogout = () => {
+    // Clear all items from localStorage
+    localStorage.clear();
+    // Show success toast
+    setToast({
+      open: true,
+      message: 'Successfully logged out! Redirecting to register page...',
+      type: 'success'
+    });
+    // Navigate to register page after a short delay
+    setTimeout(() => {
+      navigate('/register');
+    }, 2000);
+  };
+
+  const handleCloseToast = () => {
+    setToast({ ...toast, open: false });
   };
 
   const handleRoutesSubmit = (newRoutes) => {
@@ -76,7 +192,7 @@ const PassengerScreen = () => {
         color: '#4a148c',
         display: 'flex',
         flexDirection: 'column',
-        cursor : 'pointer'
+        cursor: 'pointer'
       }}
     >
       <Toolbar sx={{ justifyContent: 'center', py: 2 }}>
@@ -94,6 +210,8 @@ const PassengerScreen = () => {
             onClick={() => {
               if (item.text === 'Find Routes') {
                 setIsModalOpen(true);
+              } else if (item.text === 'Log Out') {
+                handleLogout();
               }
             }}
           >
@@ -230,6 +348,14 @@ const PassengerScreen = () => {
           <Map routes={routes} />
         </Paper>
       </Box>
+
+      {/* Custom Toast */}
+      <CustomToast
+        open={toast.open}
+        message={toast.message}
+        type={toast.type}
+        onClose={handleCloseToast}
+      />
 
       {/* Modal */}
       <FindRoutesModal

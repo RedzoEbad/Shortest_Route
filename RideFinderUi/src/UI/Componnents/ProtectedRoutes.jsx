@@ -6,7 +6,8 @@ const ProtectedRoutes = ({ children, allowedRole }) => {
   console.log("Stored User (raw):", storedUser);
 
   if (!storedUser) {
-    return <Navigate to="/" replace />;
+    console.log("No user found in localStorage");
+    return <Navigate to="/login" replace />;
   }
 
   let user;
@@ -15,26 +16,27 @@ const ProtectedRoutes = ({ children, allowedRole }) => {
     console.log("Parsed User:", user);
   } catch (err) {
     console.error('Invalid user object in localStorage:', err);
-    return <Navigate to="/" replace />;
+    return <Navigate to="/login" replace />;
   }
 
   if (!user?.role) {
-    return <Navigate to="/" replace />;
+    console.log("No role found in user object");
+    return <Navigate to="/login" replace />;
   }
 
-  const normalizedUserRole = user.role.toLowerCase();
-  const normalizedAllowedRole = allowedRole.toLowerCase();
-
-  // ✅ ALLOW: only if roles match
-  if (normalizedUserRole === normalizedAllowedRole) {
+  // Compare roles exactly as they are stored
+  if (user.role === allowedRole) {
     return children;
   }
 
-  // 🚫 REDIRECT: if roles don’t match
-  if (normalizedUserRole === 'passenger' || normalizedUserRole === 'rider') {
-    return <Navigate to={`/${normalizedUserRole}`} replace />;
+  // If roles don't match, redirect to the appropriate route
+  if (user.role === 'Passenger') {
+    return <Navigate to="/passenger" replace />;
+  } else if (user.role === 'Rider') {
+    return <Navigate to="/rider" replace />;
   } else {
-    return <Navigate to="/" replace />;
+    console.log("Invalid role:", user.role);
+    return <Navigate to="/login" replace />;
   }
 };
 
