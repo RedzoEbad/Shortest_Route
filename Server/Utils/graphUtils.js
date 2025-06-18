@@ -1,232 +1,160 @@
-// graphUtils.js
-function haversineDistance([lat1, lon1], [lat2, lon2]) {
-  const toRad = (deg) => (deg * Math.PI) / 180;
-  const R = 6371; // Earth radius in km
+const haversine = require('haversine-distance');
 
-  // Convert to radians
-  const lat1Rad = toRad(lat1);
-  const lat2Rad = toRad(lat2);
-  const dLat = toRad(lat2 - lat1);
-  const dLon = toRad(lon2 - lon1);
+// Convert GeoJSON to graph
+function geojsonToGraph(geojson) {
+  const graph = {};
 
-  // Haversine formula
-  const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
-            Math.cos(lat1Rad) * Math.cos(lat2Rad) * 
-            Math.sin(dLon/2) * Math.sin(dLon/2);
-  
-  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
-  const distance = R * c;
+  geojson.features.forEach(feature => {
+    const geometry = feature.geometry;
 
-  console.log('Distance calculation:', {
-    point1: { lat: lat1, lon: lon1 },
-    point2: { lat: lat2, lon: lon2 },
-    distance: distance
+    if (!geometry) return;
+
+    let lines = [];
+
+    if (geometry.type === 'LineString') {
+      lines.push(geometry.coordinates);
+    } else if (geometry.type === 'MultiLineString') {
+      lines = lines.concat(geometry.coordinates);
+    } else {
+      // Skip unsupported geometry types
+      return;
+    }
+
+    lines.forEach(coords => {
+      for (let i = 0; i < coords.length - 1; i++) {
+        const [lon1, lat1] = coords[i];
+        const [lon2, lat2] = coords[i + 1];
+
+        const key1 = `${lon1},${lat1}`;
+        const key2 = `${lon2},${lat2}`;
+
+        const dist = haversine([lon1, lat1], [lon2, lat2]);
+
+        if (!graph[key1]) graph[key1] = [];
+        if (!graph[key2]) graph[key2] = [];
+
+        graph[key1].push({ node: key2, weight: dist });
+        graph[key2].push({ node: key1, weight: dist }); // Bidirectional
+      }
+    });
   });
 
-  return distance;
+  return graph;
 }
-
+// Nearest node finder
 function findNearestNode(graph, lat, lon) {
+  const target = [lon, lat];
   let minDist = Infinity;
-  let nearestNode = null;
+  let nearest = null;
 
-  // Input coordinates are in [lat, lon] format
-  console.log('Finding nearest node for coordinates:', { lat, lon });
+  for (const key of Object.keys(graph)) {
+    const [nodeLon, nodeLat] = key.split(',').map(Number);
+    const dist = haversine(target, [nodeLon, nodeLat]);
 
-  // Check each node in the graph
-  for (const nodeKey of Object.keys(graph)) {
-    const [nodeLat, nodeLon] = nodeKey.split(',').map(Number);
-    
-    // Calculate distance using [lat, lon] format for both points
-    const dist = haversineDistance([lat, lon], [nodeLat, nodeLon]);
-    
     if (dist < minDist) {
       minDist = dist;
-      nearestNode = nodeKey;
-      console.log('Found closer node:', { 
-        nodeKey, 
-        distance: dist.toFixed(2) + 'km',
-        nodeCoords: [nodeLat, nodeLon]
-      });
+      nearest = key;
     }
   }
 
-  console.log('Nearest node found:', { 
-    node: nearestNode, 
-    distance: minDist.toFixed(2) + 'km',
-    searchRadius: '50km'
-  });
-
-  // Return null if no node found within 50km
-  return minDist <= 50 ? nearestNode : null;
+  return nearest;
 }
 
-function geojsonToGraph(osmData) {
-  const graph = {};
-  const nodeMap = {};
-
-  // First pass: build node map
-  osmData.elements.forEach(el => {
-    if (el.type === 'node') {
-      // Store coordinates as [lat, lon] in the node map
-      nodeMap[el.id] = [el.lat, el.lon];
-    }
-  });
-
-  console.log('Node map sample:', Object.entries(nodeMap).slice(0, 3));
-
-  // Second pass: build graph from ways
-  osmData.elements.forEach(el => {
-    if (el.type === 'way' && el.nodes && el.nodes.length >= 2) {
-      const nodes = el.nodes.map(id => nodeMap[id]).filter(Boolean);
-      
-      // Skip ways with missing nodes
-      if (nodes.length < 2) return;
-
-      // Add edges for each pair of consecutive nodes
-      for (let i = 0; i < nodes.length - 1; i++) {
-        const from = nodes[i];
-        const to = nodes[i + 1];
-        
-        const fromKey = from.join(',');
-        const toKey = to.join(',');
-        const dist = haversineDistance(from, to);
-
-        // Initialize arrays if they don't exist
-        if (!graph[fromKey]) graph[fromKey] = [];
-        if (!graph[toKey]) graph[toKey] = [];
-
-        // Add bidirectional edges
-        graph[fromKey].push({ node: toKey, distance: dist });
-        graph[toKey].push({ node: fromKey, distance: dist });
-      }
-    }
-  });
-
-  console.log('Graph sample:', Object.entries(graph).slice(0, 3));
-  return graph;
-}
-
-function dijkstra(graph, start, end, excludedEdges = new Set()) {
+// Dijkstra's algorithm
+function dijkstra(graph, start, end) {
   const distances = {};
-  const previous = {};
-  const unvisited = new Set();
+  const prev = {};
+  const queue = new Set(Object.keys(graph));
 
-  // Initialize distances
-  for (const node in graph) {
+  for (const node of queue) {
     distances[node] = Infinity;
-    unvisited.add(node);
   }
   distances[start] = 0;
 
-  while (unvisited.size > 0) {
-    // Find unvisited node with smallest distance
-    let current = null;
-    let minDist = Infinity;
-    for (const node of unvisited) {
-      if (distances[node] < minDist) {
-        minDist = distances[node];
-        current = node;
-      }
-    }
+  while (queue.size) {
+    const current = [...queue].reduce((a, b) =>
+      distances[a] < distances[b] ? a : b
+    );
+    queue.delete(current);
 
-    if (current === null || current === end) break;
+    if (current === end) break;
 
-    unvisited.delete(current);
-
-    // Update distances to neighbors
-    for (const { node: neighbor, distance } of graph[current]) {
-      if (!unvisited.has(neighbor)) continue;
-      
-      // Skip excluded edges
-      const edgeKey = `${current}-${neighbor}`;
-      if (excludedEdges.has(edgeKey)) continue;
-
-      const newDist = distances[current] + distance;
-      if (newDist < distances[neighbor]) {
-        distances[neighbor] = newDist;
-        previous[neighbor] = current;
+    for (const neighbor of graph[current]) {
+      const alt = distances[current] + neighbor.weight;
+      if (alt < distances[neighbor.node]) {
+        distances[neighbor.node] = alt;
+        prev[neighbor.node] = current;
       }
     }
   }
 
-  // Reconstruct path
   const path = [];
-  let current = end;
-  while (current) {
-    path.unshift(current.split(',').map(Number));
-    current = previous[current];
+  let u = end;
+  while (u) {
+    path.unshift(u.split(',').map(Number).reverse()); // Convert to [lat, lon]
+    u = prev[u];
   }
 
-  return {
-    path,
-    distance: distances[end]
-  };
+  return { path, distance: distances[end] };
 }
 
-function yenKShortestPaths(graph, start, end, k = 3) {
+// Yen's K-Shortest Paths
+function yenKShortestPaths(graph, start, end, K) {
   const paths = [];
-  const usedPaths = new Set();
-  const excludedEdges = new Set();
+  const { path, distance } = dijkstra(graph, start, end);
+  if (!path.length) return [];
 
-  // Get initial shortest path
-  const initialPath = dijkstra(graph, start, end);
-  if (!initialPath.path.length) return paths;
+  paths.push({ path, distance });
+  const candidates = [];
 
-  paths.push(initialPath);
-  usedPaths.add(initialPath.path.map(p => p.join(',')).join('|'));
+  for (let k = 1; k < K; k++) {
+    const prevPath = paths[k - 1].path;
 
-  // Find k-1 more paths
-  for (let i = 1; i < k; i++) {
-    let bestPath = null;
-    let bestDistance = Infinity;
+    for (let i = 0; i < prevPath.length - 1; i++) {
+      const spurNode = prevPath[i];
+      const rootPath = prevPath.slice(0, i + 1).map(p => `${p[1]},${p[0]}`); // back to "lon,lat"
 
-    // Try removing each edge in the previous paths
-    for (const prevPath of paths) {
-      for (let j = 0; j < prevPath.path.length - 1; j++) {
-        const from = prevPath.path[j].join(',');
-        const to = prevPath.path[j + 1].join(',');
-        const edgeKey = `${from}-${to}`;
-        
-        // Skip if we've already tried excluding this edge
-        if (excludedEdges.has(edgeKey)) continue;
-        
-        excludedEdges.add(edgeKey);
-        const newPath = dijkstra(graph, start, end, excludedEdges);
-        excludedEdges.delete(edgeKey);
+      const tempGraph = JSON.parse(JSON.stringify(graph));
 
-        if (!newPath.path.length) continue;
-
-        const pathKey = newPath.path.map(p => p.join(',')).join('|');
-        
-        // Check if path is valid and unique
-        if (!usedPaths.has(pathKey) && newPath.distance < bestDistance) {
-          bestPath = newPath;
-          bestDistance = newPath.distance;
+      for (const p of paths) {
+        const pRoot = p.path.slice(0, i + 1).map(c => `${c[1]},${c[0]}`).join(',');
+        const rootStr = rootPath.join(',');
+        if (pRoot === rootStr) {
+          const u = `${p.path[i][1]},${p.path[i][0]}`;
+          const v = `${p.path[i + 1][1]},${p.path[i + 1][0]}`;
+          tempGraph[u] = tempGraph[u].filter(n => n.node !== v);
         }
       }
+
+      const spur = `${spurNode[1]},${spurNode[0]}`;
+      const { path: spurPath, distance: spurDistance } = dijkstra(tempGraph, spur, end);
+      if (!spurPath.length) continue;
+
+      const totalPath = rootPath.map(r => r.split(',').map(Number).reverse()).concat(spurPath.slice(1));
+      const rootDistance = rootPath.reduce((acc, _, j, arr) => {
+        if (j === 0) return 0;
+        const a = arr[j - 1].split(',').map(Number);
+        const b = arr[j].split(',').map(Number);
+        return acc + haversine([a[0], a[1]], [b[0], b[1]]);
+      }, 0);
+
+      candidates.push({
+        path: totalPath,
+        distance: rootDistance + spurDistance
+      });
     }
 
-    if (bestPath) {
-      paths.push(bestPath);
-      usedPaths.add(bestPath.path.map(p => p.join(',')).join('|'));
-    } else {
-      break; // No more paths found
-    }
+    if (!candidates.length) break;
+
+    candidates.sort((a, b) => a.distance - b.distance);
+    paths.push(candidates.shift());
   }
-
-  console.log('Found paths:', paths.map(p => ({
-    distance: p.distance.toFixed(2) + 'km',
-    points: p.path.length
-  })));
 
   return paths;
 }
 
-module.exports = { 
-  haversineDistance, 
-  geojsonToGraph, 
+module.exports = {
+  geojsonToGraph,
   findNearestNode,
-  dijkstra,
-  yenKShortestPaths 
+  yenKShortestPaths
 };

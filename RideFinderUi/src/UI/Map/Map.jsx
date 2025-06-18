@@ -117,6 +117,14 @@ const Map = ({ routes }) => {
         return;
       }
 
+      // If we only have 2 points, add intermediate points for smoother visualization
+      if (coordinates.length === 2) {
+        const [start, end] = coordinates;
+        const midLon = (start[0] + end[0]) / 2;
+        const midLat = (start[1] + end[1]) / 2;
+        coordinates.splice(1, 0, [midLon, midLat]);
+      }
+
       console.log(`[Map Debug] Route ${index} coordinates:`, coordinates);
 
       try {
@@ -139,7 +147,7 @@ const Map = ({ routes }) => {
           data: sourceData
         });
 
-        // Add route line
+        // Add route line with improved styling
         map.addLayer({
           id: routeId,
           type: 'line',
@@ -151,7 +159,8 @@ const Map = ({ routes }) => {
           paint: {
             'line-color': color,
             'line-width': 4,
-            'line-opacity': 0.8
+            'line-opacity': 0.8,
+            'line-dasharray': index === 0 ? [1] : [2, 2] // Solid line for primary route, dashed for alternatives
           }
         });
 
