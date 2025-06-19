@@ -90,7 +90,7 @@ const FindRoutesModal = ({ open, onClose, onSubmit }) => {
     }
 
     try {
-      const res = await axios.post('https://shortest-route-backend.vercel.app/api/auth/find-routes', {
+      const res = await axios.post('http://localhost:8000/api/auth/find-routes', {
         startCoords,
         endCoords,
       });

@@ -213,7 +213,7 @@ const RegistrationForm = () => {
     setErrors({ email: '', password: '' });
 
     try {
-      const response = await axios.post('https://shortest-route-backend.vercel.app/api/auth/register', formData);
+      const response = await axios.post('http://localhost:8000/api/auth/register', formData);
       console.log('Registration Successful:', response);
 
       localStorage.setItem('user', JSON.stringify({ 
