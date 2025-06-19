@@ -1,13 +1,20 @@
-// pages/Form.jsx
-import React, { useState } from 'react';
-import dataSet from '../../DataSet/DataSet.geojson';
+import React, { useState, useEffect } from 'react';
 import DynamicButton from '../components/DynamicButton';
 
 const Form = () => {
   const [from, setFrom] = useState('');
   const [to, setTo] = useState('');
+  const [locations, setLocations] = useState([]);
 
-  const locations = dataSet.features.map((feature) => feature.properties.name);
+  useEffect(() => {
+    fetch('/DataSet/DataSet.geojson')
+      .then((res) => res.json())
+      .then((data) => {
+        const locs = data.features.map((f) => f.properties?.name).filter(Boolean);
+        setLocations(locs);
+      })
+      .catch((err) => console.error("Failed to load dataset:", err));
+  }, []);
 
   const handleSubmit = (e) => {
     e.preventDefault();
