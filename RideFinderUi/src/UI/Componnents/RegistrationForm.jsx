@@ -23,14 +23,7 @@ import API_BASE_URL from '../../config/api';
 import { saveAuth, getDashboardPath } from '../../auth/authStorage';
 import AuthLayout from './AuthLayout';
 import AuthToast from './AuthToast';
-
-const fieldSx = {
-  '& .MuiOutlinedInput-root': {
-    borderRadius: 2,
-    bgcolor: '#fff',
-    '&.Mui-focused': { boxShadow: '0 0 0 3px rgba(39,110,241,0.15)' },
-  },
-};
+import { useThemeMode } from '../../theme/AppThemeProvider';
 
 const ROLES = [
   {
@@ -50,6 +43,7 @@ const ROLES = [
 ];
 
 const RegistrationForm = () => {
+  const { fieldSx, colors, primaryButtonSx } = useThemeMode();
   const navigate = useNavigate();
   const [formData, setFormData] = useState({
     username: '',
@@ -136,7 +130,7 @@ const RegistrationForm = () => {
             InputProps={{
               startAdornment: (
                 <InputAdornment position="start">
-                  <PersonOutlineIcon sx={{ color: '#94a3b8' }} />
+                  <PersonOutlineIcon sx={{ color: colors.iconMuted }} />
                 </InputAdornment>
               ),
             }}
@@ -159,7 +153,7 @@ const RegistrationForm = () => {
             InputProps={{
               startAdornment: (
                 <InputAdornment position="start">
-                  <EmailOutlinedIcon sx={{ color: '#94a3b8' }} />
+                  <EmailOutlinedIcon sx={{ color: colors.iconMuted }} />
                 </InputAdornment>
               ),
             }}
@@ -182,7 +176,7 @@ const RegistrationForm = () => {
             InputProps={{
               startAdornment: (
                 <InputAdornment position="start">
-                  <LockOutlinedIcon sx={{ color: '#94a3b8' }} />
+                  <LockOutlinedIcon sx={{ color: colors.iconMuted }} />
                 </InputAdornment>
               ),
               endAdornment: (
@@ -197,7 +191,7 @@ const RegistrationForm = () => {
         </motion.div>
 
         <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.26 }}>
-          <Typography variant="body2" fontWeight={600} color="#334155" sx={{ mt: 2, mb: 1 }}>
+          <Typography variant="body2" fontWeight={600} color={colors.slate700} sx={{ mt: 2, mb: 1 }}>
             I am a
           </Typography>
           <Box sx={{ display: 'flex', gap: 1.5 }}>
@@ -213,14 +207,14 @@ const RegistrationForm = () => {
                     p: 1.5,
                     cursor: 'pointer',
                     borderRadius: 2,
-                    border: selected ? `2px solid ${color}` : '2px solid #e2e8f0',
-                    bgcolor: selected ? `${color}10` : '#fff',
+                    border: selected ? `2px solid ${color}` : `2px solid ${colors.border}`,
+                    bgcolor: selected ? `${color}18` : colors.surface,
                     transition: 'all 0.2s',
                     '&:hover': { borderColor: color },
                   }}
                 >
-                  <Icon sx={{ color: selected ? color : '#94a3b8', mb: 0.5 }} />
-                  <Typography fontWeight={700} fontSize="0.9rem" color="#0f172a">
+                  <Icon sx={{ color: selected ? color : colors.iconMuted, mb: 0.5 }} />
+                  <Typography fontWeight={700} fontSize="0.9rem" color={colors.textPrimary}>
                     {label}
                   </Typography>
                   <Typography variant="caption" color="text.secondary">
@@ -242,32 +236,19 @@ const RegistrationForm = () => {
             type="submit"
             fullWidth
             disabled={loading}
-            sx={{
-              mt: 3,
-              py: 1.6,
-              borderRadius: 2,
-              fontWeight: 700,
-              fontSize: '1rem',
-              textTransform: 'none',
-              color: '#fff',
-              background: 'linear-gradient(135deg, #276EF1, #1d4ed8)',
-              boxShadow: '0 8px 24px rgba(39,110,241,0.35)',
-              '&:hover': {
-                background: 'linear-gradient(135deg, #1d4ed8, #1e40af)',
-              },
-            }}
+            sx={{ ...primaryButtonSx, mt: 3, py: 1.6, fontSize: '1rem' }}
           >
             {loading ? <CircularProgress size={24} sx={{ color: '#fff' }} /> : 'Create account'}
           </Button>
         </motion.div>
 
-        <Typography align="center" sx={{ mt: 3, color: '#64748b' }}>
+        <Typography align="center" sx={{ mt: 3, color: colors.textSecondary }}>
           Already have an account?{' '}
           <Typography
             component={Link}
             to="/login"
             sx={{
-              color: '#276EF1',
+              color: colors.primary,
               fontWeight: 700,
               textDecoration: 'none',
               '&:hover': { textDecoration: 'underline' },

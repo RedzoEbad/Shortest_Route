@@ -18,7 +18,7 @@ import ChevronLeftIcon from '@mui/icons-material/ChevronLeft';
 import ChevronRightIcon from '@mui/icons-material/ChevronRight';
 import EditLocationAltIcon from '@mui/icons-material/EditLocationAlt';
 import { motion, AnimatePresence } from 'framer-motion';
-import { appColors } from '../../theme/appTheme';
+import { useThemeMode } from '../../theme/AppThemeProvider';
 
 export const ROUTE_STYLES = [
   { color: '#276EF1', casing: '#1a4fad', rank: '1st', badge: 'Fastest', medal: '🥇' },
@@ -26,16 +26,18 @@ export const ROUTE_STYLES = [
   { color: '#E8710A', casing: '#b85608', rank: '3rd', badge: 'Option', medal: '🥉' },
 ];
 
-const createPinElement = (type) => {
+const createPinElement = (type, isDark) => {
+  const labelBg = isDark ? '#1e293b' : '#fff';
+  const labelColor = isDark ? '#f1f5f9' : '#222';
   const el = document.createElement('div');
   el.innerHTML = `
     <div style="display:flex;flex-direction:column;align-items:center;filter:drop-shadow(0 3px 8px rgba(0,0,0,0.35));">
       <div style="width:40px;height:40px;border-radius:50% 50% 50% 0;transform:rotate(-45deg);
         background:${type === 'pickup' ? 'linear-gradient(135deg,#276EF1,#5b9bf8)' : 'linear-gradient(135deg,#E11900,#ff5a4a)'};
-        border:3px solid #fff;display:flex;align-items:center;justify-content:center;">
+        border:3px solid ${isDark ? '#334155' : '#fff'};display:flex;align-items:center;justify-content:center;">
         <span style="transform:rotate(45deg);font-size:15px;color:#fff;font-weight:800;">${type === 'pickup' ? 'A' : 'B'}</span>
       </div>
-      <span style="margin-top:5px;font-size:11px;font-weight:700;color:#222;background:#fff;
+      <span style="margin-top:5px;font-size:11px;font-weight:700;color:${labelColor};background:${labelBg};
         padding:3px 10px;border-radius:12px;box-shadow:0 2px 6px rgba(0,0,0,0.15);">
         ${type === 'pickup' ? 'Pickup' : 'Drop-off'}
       </span>
@@ -44,9 +46,11 @@ const createPinElement = (type) => {
 };
 
 const Map = ({ routes, selectedRouteId, onSelectRoute, onNewTrip }) => {
+  const { colors, isDark } = useThemeMode();
   const mapInstance = useRef(null);
   const markersRef = useRef([]);
   const listenersRef = useRef([]);
+  const lastMapStyleRef = useRef(null);
   const [mapLoaded, setMapLoaded] = useState(false);
   const [panelExpanded, setPanelExpanded] = useState(true);
 
@@ -98,7 +102,7 @@ const Map = ({ routes, selectedRouteId, onSelectRoute, onNewTrip }) => {
     if (!mapInstance.current) {
       mapInstance.current = new maplibregl.Map({
         container: 'map',
-        style: 'https://tiles.stadiamaps.com/styles/osm_bright.json',
+        style: colors.mapStyle,
         center: [67.0335, 24.8159],
         zoom: 13,
         attributionControl: false,
@@ -115,9 +119,26 @@ const Map = ({ routes, selectedRouteId, onSelectRoute, onNewTrip }) => {
       if (mapInstance.current) {
         mapInstance.current.remove();
         mapInstance.current = null;
+        setMapLoaded(false);
       }
     };
   }, []);
+
+  useEffect(() => {
+    const map = mapInstance.current;
+    if (!map || !mapLoaded) return;
+    if (lastMapStyleRef.current === colors.mapStyle) return;
+    const prevStyle = lastMapStyleRef.current;
+    lastMapStyleRef.current = colors.mapStyle;
+    if (prevStyle === null) return;
+
+    const center = map.getCenter();
+    const zoom = map.getZoom();
+    map.setStyle(colors.mapStyle);
+    map.once('styledata', () => {
+      map.jumpTo({ center, zoom });
+    });
+  }, [colors.mapStyle, mapLoaded]);
 
   useEffect(() => {
     if (!mapLoaded || !routes?.length) return;
@@ -200,12 +221,12 @@ const Map = ({ routes, selectedRouteId, onSelectRoute, onNewTrip }) => {
       const start = selected.path[0];
       const end = selected.path[selected.path.length - 1];
       markersRef.current.push(
-        new maplibregl.Marker({ element: createPinElement('pickup'), anchor: 'bottom' })
+        new maplibregl.Marker({ element: createPinElement('pickup', isDark), anchor: 'bottom' })
           .setLngLat(start)
           .addTo(map)
       );
       markersRef.current.push(
-        new maplibregl.Marker({ element: createPinElement('dropoff'), anchor: 'bottom' })
+        new maplibregl.Marker({ element: createPinElement('dropoff', isDark), anchor: 'bottom' })
           .setLngLat(end)
           .addTo(map)
       );
@@ -225,14 +246,14 @@ const Map = ({ routes, selectedRouteId, onSelectRoute, onNewTrip }) => {
         duration: 700,
       });
     }
-  }, [routes, selectedRouteId, mapLoaded, panelExpanded, handleRouteSelect, clearRouteLayers]);
+  }, [routes, selectedRouteId, mapLoaded, panelExpanded, handleRouteSelect, clearRouteLayers, isDark, colors.mapStyle]);
 
   const selectedId = selectedRouteId ?? routes?.[0]?.id;
   const selectedRoute = routes?.find((r) => r.id === selectedId);
   const selectedStyle = ROUTE_STYLES[(selectedId || 1) - 1] || ROUTE_STYLES[0];
 
   return (
-    <Box sx={{ width: '100%', height: '100%', position: 'relative', bgcolor: appColors.slate100 }}>
+    <Box sx={{ width: '100%', height: '100%', position: 'relative', bgcolor: colors.slate100 }}>
       <div id="map" style={{ width: '100%', height: '100%' }} />
 
       {/* Legend — hide when panel collapsed to reduce clutter */}
@@ -246,12 +267,12 @@ const Map = ({ routes, selectedRouteId, onSelectRoute, onNewTrip }) => {
             px: 2,
             py: 1.5,
             borderRadius: 3,
-            bgcolor: 'rgba(255,255,255,0.98)',
-            border: `1px solid ${appColors.slate200}`,
-            boxShadow: '0 4px 20px rgba(0,0,0,0.1)',
+            bgcolor: colors.panelBg,
+            border: `1px solid ${colors.border}`,
+            boxShadow: colors.panelShadow,
           }}
         >
-          <Typography variant="caption" fontWeight={700} color="#666">
+          <Typography variant="caption" fontWeight={700} color={colors.textSecondary}>
             ROUTES ON MAP
           </Typography>
           <Stack spacing={0.75} sx={{ mt: 1 }}>
@@ -288,13 +309,13 @@ const Map = ({ routes, selectedRouteId, onSelectRoute, onNewTrip }) => {
                 mx: 'auto',
                 p: 2,
                 borderRadius: '20px 20px 16px 16px',
-                bgcolor: 'rgba(255,255,255,0.98)',
-                boxShadow: '0 -8px 40px rgba(0,0,0,0.14)',
+                bgcolor: colors.panelBg,
+                boxShadow: colors.panelShadow,
               }}
             >
               <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                  <EmojiEventsIcon sx={{ color: '#276EF1' }} />
+                  <EmojiEventsIcon sx={{ color: colors.primary }} />
                   <Typography variant="subtitle1" fontWeight={700}>
                     Choose your route
                   </Typography>
@@ -324,8 +345,8 @@ const Map = ({ routes, selectedRouteId, onSelectRoute, onNewTrip }) => {
                         p: 1.5,
                         cursor: 'pointer',
                         borderRadius: 2.5,
-                        border: `2px solid ${active ? s.color : '#eee'}`,
-                        bgcolor: active ? alpha(s.color, 0.07) : '#fafafa',
+                        border: `2px solid ${active ? s.color : colors.border}`,
+                        bgcolor: active ? alpha(s.color, 0.12) : colors.surfaceMuted,
                         '&:hover': { bgcolor: alpha(s.color, 0.1) },
                       }}
                     >
@@ -403,7 +424,7 @@ const Map = ({ routes, selectedRouteId, onSelectRoute, onNewTrip }) => {
                 p: 2,
                 borderRadius: 3,
                 cursor: 'pointer',
-                bgcolor: 'rgba(255,255,255,0.98)',
+                bgcolor: colors.panelBg,
                 border: `2px solid ${selectedStyle.color}`,
                 boxShadow: `0 8px 32px ${alpha(selectedStyle.color, 0.3)}`,
                 '&:hover': { boxShadow: `0 12px 40px ${alpha(selectedStyle.color, 0.4)}` },
@@ -488,9 +509,10 @@ const Map = ({ routes, selectedRouteId, onSelectRoute, onNewTrip }) => {
             right: 16,
             top: '50%',
             transform: 'translateY(-50%)',
-            bgcolor: 'rgba(255,255,255,0.95)',
+            bgcolor: colors.panelBg,
             boxShadow: 2,
-            '&:hover': { bgcolor: '#fff' },
+            color: colors.textPrimary,
+            '&:hover': { bgcolor: colors.surface },
           }}
         >
           <ChevronRightIcon />

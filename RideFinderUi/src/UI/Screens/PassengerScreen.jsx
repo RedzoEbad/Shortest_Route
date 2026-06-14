@@ -9,7 +9,6 @@ import {
   Typography,
   IconButton,
   Paper,
-  CssBaseline,
   useTheme,
   useMediaQuery,
   Avatar,
@@ -26,8 +25,9 @@ import AddLocationAltOutlinedIcon from '@mui/icons-material/AddLocationAltOutlin
 import Map from '../Map/Map';
 import FindRoutesModal from '../Componnents/FindRoutesModal';
 import AuthToast from '../Componnents/AuthToast';
+import ThemeToggle from '../Componnents/ThemeToggle';
 import { clearAuth } from '../../auth/authStorage';
-import { appColors } from '../../theme/appTheme';
+import { useThemeMode } from '../../theme/AppThemeProvider';
 
 const drawerWidth = 272;
 
@@ -41,6 +41,7 @@ const getUserName = () => {
 
 const PassengerScreen = () => {
   const theme = useTheme();
+  const { colors } = useThemeMode();
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
   const navigate = useNavigate();
   const userName = getUserName();
@@ -147,7 +148,7 @@ const PassengerScreen = () => {
             mb: 2,
           }}
         >
-          <Avatar sx={{ bgcolor: appColors.primary, width: 40, height: 40, fontWeight: 700 }}>
+          <Avatar sx={{ bgcolor: colors.primary, width: 40, height: 40, fontWeight: 700 }}>
             {userName.charAt(0).toUpperCase()}
           </Avatar>
           <Box sx={{ minWidth: 0 }}>
@@ -177,8 +178,7 @@ const PassengerScreen = () => {
   );
 
   return (
-    <Box sx={{ display: 'flex', minHeight: '100vh', bgcolor: appColors.bg }}>
-      <CssBaseline />
+    <Box sx={{ display: 'flex', minHeight: '100vh', bgcolor: colors.bg }}>
 
       {/* Sidebar */}
       <Drawer
@@ -217,8 +217,8 @@ const PassengerScreen = () => {
             px: { xs: 2, sm: 3 },
             py: 1.5,
             borderRadius: 0,
-            borderBottom: `1px solid ${appColors.slate200}`,
-            bgcolor: appColors.white,
+            borderBottom: `1px solid ${colors.border}`,
+            bgcolor: colors.surface,
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'space-between',
@@ -232,41 +232,44 @@ const PassengerScreen = () => {
               </IconButton>
             )}
             <Box>
-              <Typography variant="h6" fontWeight={700} color={appColors.slate900}>
+              <Typography variant="h6" fontWeight={700} color={colors.textPrimary}>
                 Good to see you, {userName.split(' ')[0]}
               </Typography>
-              <Typography variant="caption" color={appColors.slate500}>
+              <Typography variant="caption" color={colors.textSecondary}>
                 Plan your trip across Clifton
               </Typography>
             </Box>
           </Box>
 
-          <Button
-            variant="contained"
-            startIcon={<AddLocationAltOutlinedIcon />}
-            onClick={() => setIsModalOpen(true)}
-            sx={{
-              textTransform: 'none',
-              fontWeight: 700,
-              borderRadius: 2,
-              px: 2.5,
-              background: 'linear-gradient(135deg, #276EF1, #1d4ed8)',
-              boxShadow: '0 4px 14px rgba(39,110,241,0.35)',
-              display: { xs: 'none', sm: 'flex' },
-            }}
-          >
-            Find routes
-          </Button>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+            <ThemeToggle />
+            <Button
+              variant="contained"
+              startIcon={<AddLocationAltOutlinedIcon />}
+              onClick={() => setIsModalOpen(true)}
+              sx={{
+                textTransform: 'none',
+                fontWeight: 700,
+                borderRadius: 2,
+                px: 2.5,
+                background: 'linear-gradient(135deg, #276EF1, #1d4ed8)',
+                boxShadow: '0 4px 14px rgba(39,110,241,0.35)',
+                display: { xs: 'none', sm: 'flex' },
+              }}
+            >
+              Find routes
+            </Button>
           <IconButton
             onClick={() => setIsModalOpen(true)}
             sx={{
               display: { xs: 'flex', sm: 'none' },
-              bgcolor: appColors.primaryLight,
-              color: appColors.primary,
+              bgcolor: colors.primaryLight,
+              color: colors.primary,
             }}
           >
             <AddLocationAltOutlinedIcon />
           </IconButton>
+          </Box>
         </Paper>
 
         {/* Map area */}
@@ -283,8 +286,8 @@ const PassengerScreen = () => {
                 height: '100%',
                 borderRadius: 3,
                 overflow: 'hidden',
-                border: `1px solid ${appColors.slate200}`,
-                boxShadow: '0 8px 32px rgba(15,23,42,0.08)',
+                border: `1px solid ${colors.border}`,
+                boxShadow: colors.panelShadow,
               }}
             >
               <Map

@@ -20,22 +20,7 @@ import RouteOutlinedIcon from '@mui/icons-material/RouteOutlined';
 import { motion } from 'framer-motion';
 import axios from 'axios';
 import API_BASE_URL from '../../config/api';
-import { appColors, fieldSx, primaryButtonSx } from '../../theme/appTheme';
-
-const modalStyle = {
-  position: 'absolute',
-  top: '50%',
-  left: '50%',
-  transform: 'translate(-50%, -50%)',
-  width: '92%',
-  maxWidth: 500,
-  bgcolor: '#fff',
-  boxShadow: '0 24px 64px rgba(15,23,42,0.2)',
-  borderRadius: '16px',
-  p: { xs: 3, sm: 4 },
-  outline: 'none',
-  border: `1px solid ${appColors.slate200}`,
-};
+import { useThemeMode } from '../../theme/AppThemeProvider';
 
 const nearestPlace = (places, lon, lat) => {
   let best = null;
@@ -51,6 +36,22 @@ const nearestPlace = (places, lon, lat) => {
 };
 
 const FindRoutesModal = ({ open, onClose, onSubmit }) => {
+  const { colors, fieldSx, primaryButtonSx } = useThemeMode();
+  const modalStyle = {
+    position: 'absolute',
+    top: '50%',
+    left: '50%',
+    transform: 'translate(-50%, -50%)',
+    width: '92%',
+    maxWidth: 500,
+    bgcolor: colors.surface,
+    boxShadow: colors.panelShadow,
+    borderRadius: '16px',
+    p: { xs: 3, sm: 4 },
+    outline: 'none',
+    border: `1px solid ${colors.border}`,
+  };
+
   const [start, setStart] = useState('');
   const [end, setEnd] = useState('');
   const [gpsCoords, setGpsCoords] = useState(null);
@@ -216,19 +217,19 @@ const FindRoutesModal = ({ open, onClose, onSubmit }) => {
                   width: 44,
                   height: 44,
                   borderRadius: 2,
-                  bgcolor: appColors.primaryLight,
+                  bgcolor: colors.primaryLight,
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
                 }}
               >
-                <RouteOutlinedIcon sx={{ color: appColors.primary }} />
+                <RouteOutlinedIcon sx={{ color: colors.primary }} />
               </Box>
               <Box>
-                <Typography variant="h5" fontWeight={800} color={appColors.slate900}>
+                <Typography variant="h5" fontWeight={800} color={colors.textPrimary}>
                   Where to?
                 </Typography>
-                <Typography variant="body2" color={appColors.slate500}>
+                <Typography variant="body2" color={colors.textSecondary}>
                   Clifton area · 3 routes like Uber
                 </Typography>
               </Box>
@@ -257,7 +258,7 @@ const FindRoutesModal = ({ open, onClose, onSubmit }) => {
                     ...params.InputProps,
                     startAdornment: (
                       <InputAdornment position="start">
-                        <PlaceOutlinedIcon sx={{ color: appColors.slate500, ml: 0.5 }} />
+                        <PlaceOutlinedIcon sx={{ color: colors.slate500, ml: 0.5 }} />
                       </InputAdornment>
                     ),
                     endAdornment: (
@@ -268,11 +269,11 @@ const FindRoutesModal = ({ open, onClose, onSubmit }) => {
                             onClick={handleUseCurrentLocation}
                             disabled={gpsLoading}
                             sx={{
-                              bgcolor: gpsCoords ? appColors.primaryLight : 'transparent',
-                              '&:hover': { bgcolor: appColors.primaryLight },
+                              bgcolor: gpsCoords ? colors.primaryLight : 'transparent',
+                              '&:hover': { bgcolor: colors.primaryLight },
                             }}
                           >
-                            <MyLocationIcon sx={{ color: gpsCoords ? appColors.primary : appColors.slate500 }} />
+                            <MyLocationIcon sx={{ color: gpsCoords ? colors.primary : colors.slate500 }} />
                           </IconButton>
                         </InputAdornment>
                         {params.InputProps.endAdornment}
@@ -304,7 +305,7 @@ const FindRoutesModal = ({ open, onClose, onSubmit }) => {
                     ...params.InputProps,
                     startAdornment: (
                       <InputAdornment position="start">
-                        <FlagOutlinedIcon sx={{ color: appColors.slate500, ml: 0.5 }} />
+                        <FlagOutlinedIcon sx={{ color: colors.slate500, ml: 0.5 }} />
                       </InputAdornment>
                     ),
                   }}
@@ -327,8 +328,8 @@ const FindRoutesModal = ({ open, onClose, onSubmit }) => {
                   textTransform: 'none',
                   fontWeight: 600,
                   borderRadius: 2,
-                  borderColor: appColors.slate200,
-                  color: appColors.slate700,
+                  borderColor: colors.border,
+                  color: colors.slate700,
                 }}
               >
                 Cancel
