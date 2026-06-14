@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import {
   Modal,
   Box,
@@ -11,56 +11,119 @@ import {
   InputAdornment,
   IconButton,
   CircularProgress,
+  Alert,
 } from '@mui/material';
 import MyLocationIcon from '@mui/icons-material/MyLocation';
+import PlaceOutlinedIcon from '@mui/icons-material/PlaceOutlined';
+import FlagOutlinedIcon from '@mui/icons-material/FlagOutlined';
+import RouteOutlinedIcon from '@mui/icons-material/RouteOutlined';
+import { motion } from 'framer-motion';
 import axios from 'axios';
+import API_BASE_URL from '../../config/api';
+import { appColors, fieldSx, primaryButtonSx } from '../../theme/appTheme';
 
-const style = {
+const modalStyle = {
   position: 'absolute',
   top: '50%',
   left: '50%',
   transform: 'translate(-50%, -50%)',
-  width: '90%',
+  width: '92%',
   maxWidth: 500,
-  bgcolor: 'background.paper',
-  boxShadow: 24,
-  borderRadius: 4,
-  p: 4,
-  background: 'linear-gradient(to right, #f3e5f5, #e1f5fe)',
+  bgcolor: '#fff',
+  boxShadow: '0 24px 64px rgba(15,23,42,0.2)',
+  borderRadius: '16px',
+  p: { xs: 3, sm: 4 },
+  outline: 'none',
+  border: `1px solid ${appColors.slate200}`,
+};
+
+const nearestPlace = (places, lon, lat) => {
+  let best = null;
+  let minDist = Infinity;
+  places.forEach((p) => {
+    const d = Math.hypot(p.lon - lon, p.lat - lat);
+    if (d < minDist) {
+      minDist = d;
+      best = p;
+    }
+  });
+  return best;
 };
 
 const FindRoutesModal = ({ open, onClose, onSubmit }) => {
   const [start, setStart] = useState('');
   const [end, setEnd] = useState('');
+  const [gpsCoords, setGpsCoords] = useState(null);
+  const [gpsLoading, setGpsLoading] = useState(false);
   const [places, setPlaces] = useState([]);
-  const [loading, setLoading] = useState(false);
+  const [loadingPlaces, setLoadingPlaces] = useState(false);
+  const [searching, setSearching] = useState(false);
+  const [error, setError] = useState('');
+  const [locationNote, setLocationNote] = useState('');
 
   useEffect(() => {
     if (open) {
-      setLoading(true);
+      setError('');
+      setLocationNote('');
+      setLoadingPlaces(true);
       fetch('/DataSet/DataSet.geojson')
         .then((res) => res.json())
         .then((data) => {
-          // Filter only Point features and extract necessary info
           const pointFeatures = data.features
             .filter((f) => f.geometry?.type === 'Point')
             .map((f) => ({
               name: f.properties?.name,
-              lat: f.geometry.coordinates[1], // [lon, lat]
+              lat: f.geometry.coordinates[1],
               lon: f.geometry.coordinates[0],
             }));
           setPlaces(pointFeatures);
         })
-        .catch((err) => console.error('Failed to load places:', err))
-        .finally(() => setLoading(false));
+        .catch(() => setError('Failed to load locations.'))
+        .finally(() => setLoadingPlaces(false));
     }
   }, [open]);
 
   const handleUseCurrentLocation = () => {
-    navigator.geolocation.getCurrentPosition((position) => {
-      const { latitude, longitude } = position.coords;
-      setStart(`My Location (${latitude.toFixed(5)}, ${longitude.toFixed(5)})`);
-    });
+    if (!navigator.geolocation) {
+      setError('Geolocation is not supported in this browser.');
+      return;
+    }
+
+    setGpsLoading(true);
+    setError('');
+    setLocationNote('');
+
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        const { latitude, longitude, accuracy } = position.coords;
+        setGpsCoords([longitude, latitude]);
+        setStart(`My Location (${latitude.toFixed(5)}, ${longitude.toFixed(5)})`);
+
+        const near = nearestPlace(places, longitude, latitude);
+        if (near) {
+          const approxKm = Math.hypot(near.lon - longitude, near.lat - latitude) * 111;
+          if (approxKm > 2) {
+            setLocationNote(
+              `You're ~${approxKm.toFixed(1)} km from Clifton landmarks. We'll snap your pickup to the nearest road (near ${near.name}).`
+            );
+          } else {
+            setLocationNote(`GPS locked (±${Math.round(accuracy)}m). Near ${near.name}.`);
+          }
+        }
+        setGpsLoading(false);
+      },
+      (err) => {
+        setGpsLoading(false);
+        setGpsCoords(null);
+        const messages = {
+          1: 'Location permission denied. Allow GPS or pick from the list.',
+          2: 'GPS unavailable. Pick a pickup from the list.',
+          3: 'GPS timed out. Try again or pick from the list.',
+        };
+        setError(messages[err.code] || 'Could not get your location.');
+      },
+      { enableHighAccuracy: true, timeout: 20000, maximumAge: 0 }
+    );
   };
 
   const getCoords = (placeName) => {
@@ -68,100 +131,218 @@ const FindRoutesModal = ({ open, onClose, onSubmit }) => {
     return place ? [place.lon, place.lat] : null;
   };
 
-  const handleSubmit = async () => {
-    let startCoords = null;
-    let endCoords = null;
-
+  const resolveStartCoords = () => {
+    if (gpsCoords && (start.startsWith('My Location') || start === 'My Location')) {
+      return gpsCoords;
+    }
     if (start.startsWith('My Location')) {
       const match = start.match(/\(([^)]+)\)/);
       if (match) {
         const [lat, lon] = match[1].split(',').map((n) => parseFloat(n.trim()));
-        startCoords = [lon, lat];
+        if (!Number.isNaN(lat) && !Number.isNaN(lon)) return [lon, lat];
       }
-    } else {
-      startCoords = getCoords(start);
     }
+    return getCoords(start);
+  };
 
-    endCoords = getCoords(end);
+  const handleSubmit = async () => {
+    setError('');
+    const startCoords = resolveStartCoords();
+    const endCoords = getCoords(end);
 
     if (!startCoords || !endCoords) {
-      alert('Please select valid start and end locations.');
+      setError('Please select a valid pickup and destination.');
       return;
     }
 
+    if (startCoords[0] === endCoords[0] && startCoords[1] === endCoords[1]) {
+      setError('Pickup and destination cannot be the same.');
+      return;
+    }
+
+    setSearching(true);
+
     try {
-      const res = await axios.post('https://shortest-route-backend.vercel.app/api/auth/find-routes', {
+      const res = await axios.post(`${API_BASE_URL}/api/auth/find-routes`, {
         startCoords,
         endCoords,
+        K: 3,
       });
 
       const routes = res.data.routes || [];
       if (!routes.length) {
-        alert('No routes found.');
+        setError('No routes found between these locations.');
         return;
       }
 
-      onSubmit(routes);
+      onSubmit(routes, {
+        start: startCoords,
+        end: endCoords,
+        warnings: res.data.warnings || [],
+        meta: res.data.meta,
+      });
       setStart('');
       setEnd('');
+      setGpsCoords(null);
+      setLocationNote('');
       onClose();
     } catch (err) {
-      console.error(err);
-      alert('Failed to get routes.');
+      setError(err.response?.data?.error || 'Failed to find routes. Is the server running?');
+    } finally {
+      setSearching(false);
     }
   };
 
   const placeOptions = places.map((p) => p.name);
 
   return (
-    <Modal open={open} onClose={onClose} closeAfterTransition BackdropComponent={Backdrop} BackdropProps={{ timeout: 300 }}>
+    <Modal
+      open={open}
+      onClose={onClose}
+      closeAfterTransition
+      BackdropComponent={Backdrop}
+      BackdropProps={{ timeout: 300, sx: { backdropFilter: 'blur(4px)' } }}
+    >
       <Fade in={open}>
-        <Box sx={style}>
-          <Typography variant="h6" sx={{ mb: 2, color: '#6a1b9a' }}>Find a Route</Typography>
-
-          <Autocomplete
-            value={start}
-            onChange={(e, newVal) => setStart(newVal)}
-            options={placeOptions}
-            loading={loading}
-            renderInput={(params) => (
-              <TextField
-                {...params}
-                label="Start Location"
-                variant="outlined"
-                sx={{ mb: 2 }}
-                InputProps={{
-                  ...params.InputProps,
-                  endAdornment: (
-                    <>
-                      {loading ? <CircularProgress color="inherit" size={20} /> : null}
-                      <InputAdornment position="end">
-                        <IconButton onClick={handleUseCurrentLocation}>
-                          <MyLocationIcon />
-                        </IconButton>
-                      </InputAdornment>
-                      {params.InputProps.endAdornment}
-                    </>
-                  ),
+        <Box sx={modalStyle}>
+          <motion.div
+            initial={{ opacity: 0, y: 16 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.35 }}
+          >
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 2 }}>
+              <Box
+                sx={{
+                  width: 44,
+                  height: 44,
+                  borderRadius: 2,
+                  bgcolor: appColors.primaryLight,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
                 }}
-              />
-            )}
-          />
+              >
+                <RouteOutlinedIcon sx={{ color: appColors.primary }} />
+              </Box>
+              <Box>
+                <Typography variant="h5" fontWeight={800} color={appColors.slate900}>
+                  Where to?
+                </Typography>
+                <Typography variant="body2" color={appColors.slate500}>
+                  Clifton area · 3 routes like Uber
+                </Typography>
+              </Box>
+            </Box>
 
-          <Autocomplete
-            value={end}
-            onChange={(e, newVal) => setEnd(newVal)}
-            options={placeOptions}
-            loading={loading}
-            renderInput={(params) => (
-              <TextField {...params} label="Destination" variant="outlined" sx={{ mb: 3 }} />
-            )}
-          />
+            <Autocomplete
+              value={start}
+              onChange={(e, newVal) => {
+                if (newVal === 'Use current location...') {
+                  handleUseCurrentLocation();
+                } else {
+                  setStart(newVal || '');
+                  setGpsCoords(null);
+                  setLocationNote('');
+                }
+              }}
+              options={['Use current location...', ...placeOptions]}
+              loading={loadingPlaces || gpsLoading}
+              renderInput={(params) => (
+                <TextField
+                  {...params}
+                  label="Pickup location"
+                  placeholder="Search or use GPS"
+                  sx={{ ...fieldSx, mb: 1 }}
+                  InputProps={{
+                    ...params.InputProps,
+                    startAdornment: (
+                      <InputAdornment position="start">
+                        <PlaceOutlinedIcon sx={{ color: appColors.slate500, ml: 0.5 }} />
+                      </InputAdornment>
+                    ),
+                    endAdornment: (
+                      <>
+                        {gpsLoading ? <CircularProgress size={20} sx={{ mr: 1 }} /> : null}
+                        <InputAdornment position="end">
+                          <IconButton
+                            onClick={handleUseCurrentLocation}
+                            disabled={gpsLoading}
+                            sx={{
+                              bgcolor: gpsCoords ? appColors.primaryLight : 'transparent',
+                              '&:hover': { bgcolor: appColors.primaryLight },
+                            }}
+                          >
+                            <MyLocationIcon sx={{ color: gpsCoords ? appColors.primary : appColors.slate500 }} />
+                          </IconButton>
+                        </InputAdornment>
+                        {params.InputProps.endAdornment}
+                      </>
+                    ),
+                  }}
+                />
+              )}
+            />
 
-          <Box sx={{ display: 'flex', justifyContent: 'flex-end', gap: 2 }}>
-            <Button onClick={onClose} color="error" variant="outlined">Cancel</Button>
-            <Button onClick={handleSubmit} variant="contained" sx={{ backgroundColor: '#7e57c2' }} disabled={!start || !end}>Submit</Button>
-          </Box>
+            {locationNote && (
+              <Alert severity="info" sx={{ mb: 2, borderRadius: 2, fontSize: '0.85rem' }}>
+                {locationNote}
+              </Alert>
+            )}
+
+            <Autocomplete
+              value={end}
+              onChange={(e, newVal) => setEnd(newVal || '')}
+              options={placeOptions}
+              loading={loadingPlaces}
+              renderInput={(params) => (
+                <TextField
+                  {...params}
+                  label="Destination"
+                  placeholder="Where are you going?"
+                  sx={{ ...fieldSx, mb: 2 }}
+                  InputProps={{
+                    ...params.InputProps,
+                    startAdornment: (
+                      <InputAdornment position="start">
+                        <FlagOutlinedIcon sx={{ color: appColors.slate500, ml: 0.5 }} />
+                      </InputAdornment>
+                    ),
+                  }}
+                />
+              )}
+            />
+
+            {error && (
+              <Alert severity="error" sx={{ mb: 2, borderRadius: 2 }}>
+                {error}
+              </Alert>
+            )}
+
+            <Box sx={{ display: 'flex', justifyContent: 'flex-end', gap: 1.5, mt: 1 }}>
+              <Button
+                onClick={onClose}
+                variant="outlined"
+                disabled={searching}
+                sx={{
+                  textTransform: 'none',
+                  fontWeight: 600,
+                  borderRadius: 2,
+                  borderColor: appColors.slate200,
+                  color: appColors.slate700,
+                }}
+              >
+                Cancel
+              </Button>
+              <Button
+                onClick={handleSubmit}
+                variant="contained"
+                disabled={!start || !end || searching || gpsLoading}
+                sx={{ ...primaryButtonSx, minWidth: 140, px: 3 }}
+              >
+                {searching ? <CircularProgress size={22} sx={{ color: '#fff' }} /> : 'Find routes'}
+              </Button>
+            </Box>
+          </motion.div>
         </Box>
       </Fade>
     </Modal>

@@ -43,7 +43,7 @@ const registerUserController = asyncHandler(async(req, res) => {
     if (user) {
         res.status(201).json({
             _id: user._id,
-            Username: user.username,
+            username: user.username,
             email: user.email,
             role: user.role,
             isAvalible: role === 'Rider' ? true : undefined,
@@ -73,7 +73,8 @@ const loginController = asyncHandler(async (req, res) => {
 });
 
 const generateToken = (id, role) => {
-    return jwt.sign({ id, role }, process.env.JWTOKEN, { expiresIn: '30d' });
+    const secret = process.env.JWT_SECRET || process.env.JWTOKEN;
+    return jwt.sign({ id, role }, secret, { expiresIn: '30d' });
 };
 
 module.exports = {

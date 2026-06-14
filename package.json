@@ -1,5 +1,10 @@
 {
-  "dependencies": {
-    "mongoose": "^8.15.0"
+  "name": "shortest-route",
+  "private": true,
+  "scripts": {
+    "server": "npm run dev --prefix Server",
+    "server:start": "npm start --prefix Server",
+    "client": "npm run dev --prefix RideFinderUi",
+    "install:all": "npm install --prefix Server && npm install --prefix RideFinderUi"
   }
 }

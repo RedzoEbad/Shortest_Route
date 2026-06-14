@@ -9,7 +9,7 @@
   },
   "author": "",
   "license": "ISC",
-  "description": "",
+  "description": "RideFinder backend API",
   "dependencies": {
     "bcryptjs": "^3.0.2",
     "cors": "^2.8.5",
@@ -18,7 +18,9 @@
     "express-async-handler": "^1.2.0",
     "haversine-distance": "^1.2.4",
     "jsonwebtoken": "^9.0.2",
-    "mongoose": "^8.15.0",
+    "mongoose": "^8.15.0"
+  },
+  "devDependencies": {
     "nodemon": "^3.1.10"
   }
 }

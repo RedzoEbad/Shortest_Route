@@ -1,443 +1,290 @@
-import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useState } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import {
-  FormControl,
-  InputLabel,
-  Select,
-  MenuItem,
-  Card,
-  CardContent,
   TextField,
   Button,
-  Typography,
   Box,
   CircularProgress,
-  Paper,
-  Container,
-  Fade,
-  Grow,
+  InputAdornment,
   IconButton,
+  Typography,
+  Paper,
 } from '@mui/material';
-import CheckCircleIcon from '@mui/icons-material/CheckCircle';
-import ErrorIcon from '@mui/icons-material/Error';
-import WarningIcon from '@mui/icons-material/Warning';
-import InfoIcon from '@mui/icons-material/Info';
+import PersonOutlineIcon from '@mui/icons-material/PersonOutline';
+import EmailOutlinedIcon from '@mui/icons-material/EmailOutlined';
+import LockOutlinedIcon from '@mui/icons-material/LockOutlined';
+import VisibilityOutlinedIcon from '@mui/icons-material/VisibilityOutlined';
+import VisibilityOffOutlinedIcon from '@mui/icons-material/VisibilityOffOutlined';
+import DirectionsCarOutlinedIcon from '@mui/icons-material/DirectionsCarOutlined';
+import PersonIcon from '@mui/icons-material/Person';
+import { motion } from 'framer-motion';
+import API_BASE_URL from '../../config/api';
+import { saveAuth, getDashboardPath } from '../../auth/authStorage';
+import AuthLayout from './AuthLayout';
+import AuthToast from './AuthToast';
 
-const CustomToast = ({ open, message, type, onClose }) => {
-  const getIcon = () => {
-    switch (type) {
-      case 'success':
-        return <CheckCircleIcon sx={{ fontSize: 32, color: '#fff' }} />;
-      case 'error':
-        return <ErrorIcon sx={{ fontSize: 32, color: '#fff' }} />;
-      case 'warning':
-        return <WarningIcon sx={{ fontSize: 32, color: '#fff' }} />;
-      case 'info':
-        return <InfoIcon sx={{ fontSize: 32, color: '#fff' }} />;
-      default:
-        return <InfoIcon sx={{ fontSize: 32, color: '#fff' }} />;
-    }
-  };
-
-  const getBackground = () => {
-    switch (type) {
-      case 'success':
-        return 'linear-gradient(135deg, #00c853, #69f0ae)';
-      case 'error':
-        return 'linear-gradient(135deg, #ff1744, #ff616f)';
-      case 'warning':
-        return 'linear-gradient(135deg, #ffd600, #ffecb3)';
-      case 'info':
-        return 'linear-gradient(135deg, #2196f3, #90caf9)';
-      default:
-        return 'linear-gradient(135deg, #2196f3, #90caf9)';
-    }
-  };
-
-  return (
-    <Fade in={open} timeout={500}>
-      <Box
-        sx={{
-          position: 'fixed',
-          top: 0,
-          left: '50%',
-          transform: 'translateX(-50%)',
-          zIndex: 9999,
-          minWidth: 320,
-          maxWidth: 450,
-          animation: open ? 'slideDown 0.5s ease-out' : 'slideUp 0.5s ease-in',
-          '@keyframes slideDown': {
-            '0%': {
-              transform: 'translate(-50%, -100%)',
-              opacity: 0,
-            },
-            '100%': {
-              transform: 'translate(-50%, 20px)',
-              opacity: 1,
-            },
-          },
-          '@keyframes slideUp': {
-            '0%': {
-              transform: 'translate(-50%, 20px)',
-              opacity: 1,
-            },
-            '100%': {
-              transform: 'translate(-50%, -100%)',
-              opacity: 0,
-            },
-          },
-        }}
-      >
-        <Grow in={open} timeout={500}>
-          <Paper
-            elevation={8}
-            sx={{
-              p: 2.5,
-              display: 'flex',
-              alignItems: 'center',
-              gap: 2,
-              background: getBackground(),
-              borderRadius: '16px',
-              boxShadow: '0 8px 32px rgba(0,0,0,0.2)',
-              backdropFilter: 'blur(10px)',
-              border: '1px solid rgba(255,255,255,0.3)',
-              position: 'relative',
-              overflow: 'hidden',
-              '&::before': {
-                content: '""',
-                position: 'absolute',
-                top: 0,
-                left: 0,
-                right: 0,
-                height: '4px',
-                background: 'rgba(255,255,255,0.3)',
-              },
-            }}
-          >
-            <Box
-              sx={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: 2,
-                flex: 1,
-              }}
-            >
-              {getIcon()}
-              <Typography
-                sx={{
-                  color: '#fff',
-                  fontWeight: 600,
-                  fontSize: '1.1rem',
-                  flex: 1,
-                  textShadow: '0 1px 2px rgba(0,0,0,0.1)',
-                }}
-              >
-                {message}
-              </Typography>
-            </Box>
-            <IconButton
-              onClick={onClose}
-              sx={{
-                color: '#fff',
-                padding: '4px',
-                '&:hover': {
-                  backgroundColor: 'rgba(255,255,255,0.2)',
-                  transform: 'scale(1.1)',
-                  transition: 'all 0.2s ease',
-                },
-              }}
-            >
-              <Typography sx={{ fontSize: '1.4rem', fontWeight: 500 }}>×</Typography>
-            </IconButton>
-          </Paper>
-        </Grow>
-      </Box>
-    </Fade>
-  );
+const fieldSx = {
+  '& .MuiOutlinedInput-root': {
+    borderRadius: 2,
+    bgcolor: '#fff',
+    '&.Mui-focused': { boxShadow: '0 0 0 3px rgba(39,110,241,0.15)' },
+  },
 };
+
+const ROLES = [
+  {
+    value: 'Passenger',
+    label: 'Passenger',
+    desc: 'Book rides & find routes',
+    icon: PersonIcon,
+    color: '#276EF1',
+  },
+  {
+    value: 'Rider',
+    label: 'Rider',
+    desc: 'Drive & accept trips',
+    icon: DirectionsCarOutlinedIcon,
+    color: '#059669',
+  },
+];
 
 const RegistrationForm = () => {
   const navigate = useNavigate();
-  const [errors, setErrors] = useState({ email: '', password: '' });
   const [formData, setFormData] = useState({
     username: '',
     email: '',
     password: '',
-    role: '',
+    role: 'Passenger',
   });
+  const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [errors, setErrors] = useState({});
   const [toast, setToast] = useState({ open: false, message: '', type: 'info' });
+
+  const validate = () => {
+    const next = {};
+    if (!formData.username.trim()) next.username = 'Name is required';
+    if (!formData.email.trim()) next.email = 'Email is required';
+    else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
+      next.email = 'Enter a valid email address';
+    }
+    if (!formData.password) next.password = 'Password is required';
+    else if (formData.password.length < 6) {
+      next.password = 'At least 6 characters';
+    }
+    if (!formData.role) next.role = 'Select a role';
+    setErrors(next);
+    return Object.keys(next).length === 0;
+  };
 
   const handleChange = (e) => {
     const { name, value } = e.target;
-    setFormData((prev) => ({
-      ...prev,
-      [name]: value,
-    }));
-
-    if (name === 'email' && errors.email) {
-      setErrors((prev) => ({ ...prev, email: '' }));
-    }
-    if (name === 'password' && errors.password) {
-      setErrors((prev) => ({ ...prev, password: '' }));
-    }
+    setFormData((prev) => ({ ...prev, [name]: value }));
+    if (errors[name]) setErrors((prev) => ({ ...prev, [name]: '' }));
   };
-
-  const validateEmail = (email) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
-  const validatePassword = (password) => password.length >= 6;
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-
-    let hasError = false;
-    if (!validateEmail(formData.email)) {
-      setToast({
-        open: true,
-        message: 'Please enter a valid email address',
-        type: 'error'
-      });
-      hasError = true;
-    }
-    if (!validatePassword(formData.password)) {
-      setToast({
-        open: true,
-        message: 'Password must be at least 6 characters',
-        type: 'warning'
-      });
-      hasError = true;
-    }
-    if (hasError) return;
+    if (!validate()) return;
 
     setLoading(true);
-    setErrors({ email: '', password: '' });
-
     try {
-      const response = await axios.post('https://shortest-route-backend.vercel.app/api/auth/register', formData);
-      console.log('Registration Successful:', response);
+      const { data } = await axios.post(`${API_BASE_URL}/api/auth/register`, formData);
+      const username = data.username || data.Username;
 
-      localStorage.setItem('user', JSON.stringify({ 
-        role: response.data.role,
-        token: response.data.token,
-        id: response.data._id 
-      }));
-      localStorage.setItem('name', JSON.stringify(response.data.Username));
+      saveAuth({
+        id: data._id,
+        role: data.role,
+        token: data.token,
+        username,
+      });
 
       setToast({
         open: true,
-        message: `Welcome ${response.data.Username}! Registration successful. Redirecting...`,
-        type: 'success'
+        message: `Welcome, ${username}! Your account is ready.`,
+        type: 'success',
       });
 
-      setTimeout(() => {
-        if (response.data.role === 'Passenger') {
-          navigate('/passenger');
-        } else if (response.data.role === 'Rider') {
-          navigate('/rider');
-        }
-      }, 2000);
-
-      setFormData({ username: '', email: '', password: '', role: '' });
+      setTimeout(() => navigate(getDashboardPath(data.role)), 1200);
     } catch (error) {
-      console.log('Registration Failed:', error.response?.data?.message || error.message);
-      const errorMessage = error.response?.data?.message || 'Registration failed. Please try again.';
-      
-      // Clear the specific field that caused the error
-      if (errorMessage.includes('Email already registered')) {
-        setFormData(prev => ({ ...prev, email: '' }));
-      } else if (errorMessage.includes('Username already taken')) {
-        setFormData(prev => ({ ...prev, username: '' }));
-      }
-
-      setToast({
-        open: true,
-        message: errorMessage,
-        type: 'error'
-      });
+      const msg = error.response?.data?.message || 'Registration failed. Please try again.';
+      setToast({ open: true, message: msg, type: 'error' });
     } finally {
       setLoading(false);
     }
   };
 
-  const handleCloseToast = () => {
-    setToast({ ...toast, open: false });
-  };
-
-  const handleLoginClick = () => {
-    navigate('/login');
-  };
-
   return (
-    <Box
-      sx={{
-        minHeight: '100vh',
-        background: 'linear-gradient(135deg,rgb(212, 215, 228) 0%,rgb(144, 112, 175) 100%)',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        padding: 2,
-        backgroundSize: 'cover',
-      }}
+    <AuthLayout
+      title="Create account"
+      subtitle="Join RideEase — pick your role and start in seconds."
     >
-      <Card
-        sx={{
-          maxWidth: 480,
-          width: '100%',
-          borderRadius: 3,
-          boxShadow: '0 8px 24px rgba(0,0,0,0.2)',
-          backdropFilter: 'blur(10px)',
-          backgroundColor: 'rgba(255, 255, 255, 0.85)',
-          px: 4,
-          py: 5,
-          position: 'relative',
-          overflow: 'hidden',
-        }}
-      >
-        <Typography
-          variant="h4"
-          align="center"
-          gutterBottom
-          sx={{ fontWeight: '700', letterSpacing: 1, color: '#4a148c' }}
-        >
-          Create an Account
-        </Typography>
-
-        <form onSubmit={handleSubmit} noValidate>
+      <Box component="form" onSubmit={handleSubmit} noValidate>
+        <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.08 }}>
           <TextField
             name="username"
-            label="Your Name"
-            variant="filled"
+            label="Full name"
             fullWidth
             margin="normal"
             value={formData.username}
             onChange={handleChange}
-            InputLabelProps={{ shrink: true }}
-            sx={{
-              borderRadius: 2,
-              '& .MuiFilledInput-root': {
-                borderRadius: 2,
-                backgroundColor: '#f3e5f5',
-                '&:hover': { backgroundColor: '#e1bee7' },
-              },
+            error={!!errors.username}
+            helperText={errors.username}
+            autoComplete="name"
+            sx={fieldSx}
+            InputProps={{
+              startAdornment: (
+                <InputAdornment position="start">
+                  <PersonOutlineIcon sx={{ color: '#94a3b8' }} />
+                </InputAdornment>
+              ),
             }}
           />
+        </motion.div>
+
+        <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.14 }}>
           <TextField
             name="email"
-            label="Your Email"
-            variant="filled"
+            label="Email address"
+            type="email"
             fullWidth
             margin="normal"
-            type="email"
             value={formData.email}
             onChange={handleChange}
             error={!!errors.email}
             helperText={errors.email}
-            InputLabelProps={{ shrink: true }}
-            sx={{
-              borderRadius: 2,
-              '& .MuiFilledInput-root': {
-                borderRadius: 2,
-                backgroundColor: '#f3e5f5',
-                '&:hover': { backgroundColor: '#e1bee7' },
-              },
+            autoComplete="email"
+            sx={fieldSx}
+            InputProps={{
+              startAdornment: (
+                <InputAdornment position="start">
+                  <EmailOutlinedIcon sx={{ color: '#94a3b8' }} />
+                </InputAdornment>
+              ),
             }}
           />
+        </motion.div>
+
+        <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }}>
           <TextField
             name="password"
             label="Password"
-            variant="filled"
+            type={showPassword ? 'text' : 'password'}
             fullWidth
             margin="normal"
-            type="password"
             value={formData.password}
             onChange={handleChange}
             error={!!errors.password}
-            helperText={errors.password}
-            InputLabelProps={{ shrink: true }}
-            sx={{
-              borderRadius: 2,
-              '& .MuiFilledInput-root': {
-                borderRadius: 2,
-                backgroundColor: '#f3e5f5',
-                '&:hover': { backgroundColor: '#e1bee7' },
-              },
+            helperText={errors.password || 'Minimum 6 characters'}
+            autoComplete="new-password"
+            sx={fieldSx}
+            InputProps={{
+              startAdornment: (
+                <InputAdornment position="start">
+                  <LockOutlinedIcon sx={{ color: '#94a3b8' }} />
+                </InputAdornment>
+              ),
+              endAdornment: (
+                <InputAdornment position="end">
+                  <IconButton onClick={() => setShowPassword((v) => !v)} edge="end">
+                    {showPassword ? <VisibilityOffOutlinedIcon /> : <VisibilityOutlinedIcon />}
+                  </IconButton>
+                </InputAdornment>
+              ),
             }}
           />
-          <FormControl
-            fullWidth
-            margin="normal"
-            variant="filled"
-            sx={{
-              borderRadius: 2,
-              backgroundColor: '#f3e5f5',
-              '&:hover': { backgroundColor: '#e1bee7' },
-            }}
-          >
-            <InputLabel id="role-label" sx={{ color: '#4a148c' }}>
-              Role
-            </InputLabel>
-            <Select
-              name="role"
-              labelId="role-label"
-              value={formData.role}
-              onChange={handleChange}
-              label="Role"
-              sx={{ borderRadius: 2 }}
-            >
-              <MenuItem value="Rider">Rider</MenuItem>
-              <MenuItem value="Passenger">Passenger</MenuItem>
-            </Select>
-          </FormControl>
+        </motion.div>
 
+        <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.26 }}>
+          <Typography variant="body2" fontWeight={600} color="#334155" sx={{ mt: 2, mb: 1 }}>
+            I am a
+          </Typography>
+          <Box sx={{ display: 'flex', gap: 1.5 }}>
+            {ROLES.map(({ value, label, desc, icon: Icon, color }) => {
+              const selected = formData.role === value;
+              return (
+                <Paper
+                  key={value}
+                  onClick={() => setFormData((prev) => ({ ...prev, role: value }))}
+                  elevation={0}
+                  sx={{
+                    flex: 1,
+                    p: 1.5,
+                    cursor: 'pointer',
+                    borderRadius: 2,
+                    border: selected ? `2px solid ${color}` : '2px solid #e2e8f0',
+                    bgcolor: selected ? `${color}10` : '#fff',
+                    transition: 'all 0.2s',
+                    '&:hover': { borderColor: color },
+                  }}
+                >
+                  <Icon sx={{ color: selected ? color : '#94a3b8', mb: 0.5 }} />
+                  <Typography fontWeight={700} fontSize="0.9rem" color="#0f172a">
+                    {label}
+                  </Typography>
+                  <Typography variant="caption" color="text.secondary">
+                    {desc}
+                  </Typography>
+                </Paper>
+              );
+            })}
+          </Box>
+          {errors.role && (
+            <Typography variant="caption" color="error" sx={{ mt: 0.5, display: 'block' }}>
+              {errors.role}
+            </Typography>
+          )}
+        </motion.div>
+
+        <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.32 }}>
           <Button
             type="submit"
             fullWidth
-            variant="contained"
             disabled={loading}
             sx={{
-              mt: 4,
-              py: 1.8,
-              fontWeight: '700',
-              fontSize: '1.1rem',
-              background: 'linear-gradient(90deg, #8e24aa, #d81b60)',
-              boxShadow: '0 4px 15px rgba(216, 27, 96, 0.5)',
-              transition: 'background 0.3s ease',
-              '&:hover': {
-                background: 'linear-gradient(90deg, #d81b60, #8e24aa)',
-                boxShadow: '0 6px 20px rgba(216, 27, 96, 0.7)',
-              },
-              borderRadius: 3,
-            }}
-          >
-            {loading ? <CircularProgress size={24} sx={{ color: '#fff' }} /> : 'Register'}
-          </Button>
-
-          <Button
-            fullWidth
-            variant="text"
-            onClick={handleLoginClick}
-            sx={{
-              mt: 2,
-              color: '#aa00ff',
-              '&:hover': {
-                background: 'rgba(170, 0, 255, 0.04)',
-              },
+              mt: 3,
+              py: 1.6,
+              borderRadius: 2,
+              fontWeight: 700,
+              fontSize: '1rem',
               textTransform: 'none',
+              color: '#fff',
+              background: 'linear-gradient(135deg, #276EF1, #1d4ed8)',
+              boxShadow: '0 8px 24px rgba(39,110,241,0.35)',
+              '&:hover': {
+                background: 'linear-gradient(135deg, #1d4ed8, #1e40af)',
+              },
             }}
           >
-            Already have an account? Login
+            {loading ? <CircularProgress size={24} sx={{ color: '#fff' }} /> : 'Create account'}
           </Button>
-        </form>
-      </Card>
+        </motion.div>
 
-      {/* Custom Toast */}
-      <CustomToast
+        <Typography align="center" sx={{ mt: 3, color: '#64748b' }}>
+          Already have an account?{' '}
+          <Typography
+            component={Link}
+            to="/login"
+            sx={{
+              color: '#276EF1',
+              fontWeight: 700,
+              textDecoration: 'none',
+              '&:hover': { textDecoration: 'underline' },
+            }}
+          >
+            Sign in
+          </Typography>
+        </Typography>
+      </Box>
+
+      <AuthToast
         open={toast.open}
         message={toast.message}
         type={toast.type}
-        onClose={handleCloseToast}
+        onClose={() => setToast((t) => ({ ...t, open: false }))}
       />
-    </Box>
+    </AuthLayout>
   );
 };
 
