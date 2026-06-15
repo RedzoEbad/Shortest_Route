@@ -87,3 +87,5 @@ Coordinates are `[longitude, latitude]`.
 - **MongoDB connection failed** — Check `MONGODB_URI`, whitelist your IP in Atlas, and ensure the database name is in the URI (e.g. `/ridefinder`).
 - **Module not found** — Run `npm install` again inside `Server/`.
 - **Port in use** — Change `PORT` in `.env` or stop the process using port 8000.
+
+so my name is eba dand   ma sdfjsdfskfjdfk
