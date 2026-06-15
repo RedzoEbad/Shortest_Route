@@ -88,4 +88,3 @@ Coordinates are `[longitude, latitude]`.
 - **Module not found** — Run `npm install` again inside `Server/`.
 - **Port in use** — Change `PORT` in `.env` or stop the process using port 8000.
 
-so my name is eba dand   ma sdfjsdfskfjdfk
